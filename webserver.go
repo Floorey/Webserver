@@ -1,10 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
-	"net/http"
-	"time"
 )
 
 type User struct {
@@ -33,8 +38,34 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"token": tokenString})
 	})
 	//start webserver at port 8080
-	router.Run(":8080")
+	go func() {
+		if err := router.Run(":8080"); err != nil {
+			fmt.Println("Server error", err)
+		}
+	}()
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
+	numWorkers := 4
+	for i := 0; i < numWorkers; i++ {
+		go worker(i)
+
+	}
+
+	for {
+		select {
+		case <-sig:
+			fmt.Println("Exit...")
+			return
+		default:
+			time.Sleep(time.Second)
+			fmt.Println("looping..")
+
+		}
+	}
+
 }
+
 func generateToken(user User) (string, error) {
 	token := jwt.New(jwt.SigningMethodES256)
 
@@ -44,6 +75,8 @@ func generateToken(user User) (string, error) {
 	claims["email"] = user.Email
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
+	fmt.Println("Generated token:", token)
+
 	//signe token with secret key
 	tokenString, err := token.SignedString([]byte("secret"))
 	if err != nil {
@@ -51,4 +84,12 @@ func generateToken(user User) (string, error) {
 	}
 
 	return tokenString, nil
+}
+func worker(id int) {
+	for {
+		fmt.Println("Worker %d started\n", id)
+		time.Sleep(time.Second)
+		fmt.Println("Worker %d beendet\n", id)
+	}
+
 }
