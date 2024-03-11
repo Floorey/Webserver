@@ -1,15 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/gin-gonic/gin"
 	"net/http"
+
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/dgrijalva/jwt-go"
-	"github.com/gin-gonic/gin"
+	"time"
 )
 
 type User struct {
@@ -37,6 +39,10 @@ func main() {
 		}
 		c.JSON(http.StatusOK, gin.H{"token": tokenString})
 	})
+
+	// add JSON-USER-DATA
+	router.POST("/user", addUserHandler)
+
 	//start webserver at port 8080
 	go func() {
 		if err := router.Run(":8080"); err != nil {
@@ -49,7 +55,6 @@ func main() {
 	numWorkers := 4
 	for i := 0; i < numWorkers; i++ {
 		go worker(i)
-
 	}
 
 	for {
@@ -60,10 +65,8 @@ func main() {
 		default:
 			time.Sleep(time.Second)
 			fmt.Println("looping..")
-
 		}
 	}
-
 }
 
 func generateToken(user User) (string, error) {
@@ -85,11 +88,27 @@ func generateToken(user User) (string, error) {
 
 	return tokenString, nil
 }
-func worker(id int) {
-	for {
-		fmt.Println("Worker %d started\n", id)
-		time.Sleep(time.Second)
-		fmt.Println("Worker %d beendet\n", id)
+
+func addUserHandler(c *gin.Context) {
+	// Parse the JSON request body
+	var newUser User
+	err := json.NewDecoder(c.Request.Body).Decode(&newUser)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
+	// Save the user data (assuming you have a function to handle this)
+	// saveUser(newUser)
+
+	// Respond with success message
+	c.JSON(http.StatusOK, gin.H{"message": "User successfully added"})
+}
+
+func worker(id int) {
+	for {
+		fmt.Printf("Worker %d started\n", id)
+		time.Sleep(time.Second)
+		fmt.Printf("Worker %d beendet\n", id)
+	}
 }
